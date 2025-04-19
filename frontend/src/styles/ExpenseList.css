@@ -1,0 +1,130 @@
+.expense-list {
+    padding: 1.5rem;
+  }
+  
+  .expense-list h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-color);
+  }
+  
+  .expense-table-container {
+    overflow-x: auto;
+  }
+  
+  .expense-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .expense-table th {
+    background-color: #f8fafc;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 1px solid var(--input-border);
+  }
+  
+  .expense-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--input-border);
+    color: var(--text-color);
+  }
+  
+  .expense-table tr:hover {
+    background-color: #f8fafc;
+  }
+  
+  .expense-table tr.expanded {
+    background-color: #f8fafc;
+  }
+  
+  .category-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    background-color: #e0f2fe;
+    color: #0ea5e9;
+  }
+  
+  .amount {
+    font-weight: 600;
+  }
+  
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 0.5rem;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s ease;
+  }
+  
+  .action-btn:hover {
+    background-color: #f1f5f9;
+    color: var(--text-color);
+  }
+  
+  .edit-btn:hover {
+    color: var(--accent-color);
+  }
+  
+  .delete-btn:hover {
+    color: #ef4444;
+  }
+  
+  .receipt-btn {
+    text-decoration: none;
+  }
+  
+  .receipt-btn:hover {
+    color: #10b981;
+  }
+  
+  .expense-details {
+    background-color: #f8fafc;
+  }
+  
+  .expense-description {
+    padding: 1rem;
+  }
+  
+  .expense-description h4 {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: #64748b;
+  }
+  
+  .expense-description p {
+    color: var(--text-color);
+    line-height: 1.5;
+  }
+  
+  .edit-form-row td {
+    padding: 0;
+  }
+  
+  .no-expenses {
+    padding: 3rem;
+    text-align: center;
+    color: #64748b;
+  }
+  
+  .no-expenses h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+  }
+  

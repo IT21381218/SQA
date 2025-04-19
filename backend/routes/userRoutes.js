@@ -1,12 +1,13 @@
-// backend/routes/userRoutes.js
-const express = require('express');
-const upload = require('../middleware/multer'); // Import multer
-const { registerUser, loginUser, getUserProfile } = require('../controllers/userController');
-const { protect } = require('../middleware/authMiddleware');
-const router = express.Router();
+const express = require("express")
+const upload = require("../middleware/multer")
+const { registerUser, loginUser, getUserProfile, updateUserProfile } = require("../controllers/userController")
+const { protect } = require("../middleware/authMiddleware")
+const router = express.Router()
 
-router.post('/register', upload.single('profilePic'), registerUser);  // Handle file upload
-router.post('/login', loginUser);
-router.get('/profile', protect, getUserProfile);
+router.post("/register", upload.single("profilePic"), registerUser)
+router.post("/login", loginUser)
 
-module.exports = router;
+// Protected routes
+router.route("/profile").get(protect, getUserProfile).put(protect, upload.single("profilePic"), updateUserProfile)
+
+module.exports = router
