@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import axios from "axios"
 import { useNavigate } from "react-router-dom"
 import Navbar from "./Navbar"
@@ -29,54 +29,8 @@ const Dashboard = () => {
 
   const navigate = useNavigate()
 
-  useEffect(() => {
-    const fetchUserAndData = async () => {
-      const token = localStorage.getItem("token")
-      if (!token) {
-        navigate("/login")
-        return
-      }
-
-      try {
-        // Fetch user profile
-        const userResponse = await axios.get("http://localhost:5000/api/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        setUser(userResponse.data)
-
-        // Fetch categories
-        try {
-          const categoriesResponse = await axios.get("http://localhost:5000/api/categories", {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-          setCategories(categoriesResponse.data)
-        } catch (catError) {
-          console.error("Error fetching categories:", catError)
-          // Continue even if categories fail to load
-        }
-
-        // Fetch expenses with filters
-        await fetchExpenses()
-
-        // Fetch stats
-        await fetchStats()
-      } catch (error) {
-        console.error("Error fetching data:", error)
-        if (error.response && error.response.status === 401) {
-          localStorage.removeItem("token")
-          navigate("/login")
-        } else {
-          toast.error("Failed to load dashboard data")
-        }
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchUserAndData()
-  }, [navigate])
-
-  const fetchExpenses = async () => {
+  // Use useCallback to memoize these functions
+  const fetchExpenses = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
 
@@ -123,9 +77,9 @@ const Dashboard = () => {
       console.error("Error fetching expenses:", error)
       toast.error("Failed to load expenses")
     }
-  }
+  }, [filters])
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
 
@@ -189,7 +143,66 @@ const Dashboard = () => {
       })
       toast.error("Failed to load expense statistics")
     }
-  }
+  }, [period])
+
+  // Re-fetch expenses when filters change
+  useEffect(() => {
+    if (!loading) {
+      fetchExpenses()
+    }
+  }, [fetchExpenses, loading])
+
+  // Re-fetch stats when period changes
+  useEffect(() => {
+    if (!loading) {
+      fetchStats()
+    }
+  }, [fetchStats, loading])
+
+  useEffect(() => {
+    const fetchUserAndData = async () => {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        navigate("/login")
+        return
+      }
+
+      try {
+        // Fetch user profile
+        const userResponse = await axios.get("http://localhost:5000/api/users/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        setUser(userResponse.data)
+
+        // Fetch categories
+        try {
+          const categoriesResponse = await axios.get("http://localhost:5000/api/categories", {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          setCategories(categoriesResponse.data)
+        } catch (catError) {
+          console.error("Error fetching categories:", catError)
+          // Continue even if categories fail to load
+        }
+
+        // Initial data fetch
+        await fetchExpenses()
+        await fetchStats()
+      } catch (error) {
+        console.error("Error fetching data:", error)
+        if (error.response && error.response.status === 401) {
+          localStorage.removeItem("token")
+          navigate("/login")
+        } else {
+          toast.error("Failed to load dashboard data")
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUserAndData()
+  }, [navigate, fetchExpenses, fetchStats])
 
   const handleAddExpense = async (expenseData) => {
     try {
@@ -266,6 +279,7 @@ const Dashboard = () => {
   const handleFilterChange = (newFilters) => {
     console.log("Filter change:", newFilters)
     setFilters({ ...filters, ...newFilters })
+    // No need to call applyFilters here as the useEffect will handle it
   }
 
   const applyFilters = () => {
@@ -275,7 +289,7 @@ const Dashboard = () => {
 
   const handlePeriodChange = (newPeriod) => {
     setPeriod(newPeriod)
-    fetchStats()
+    // No need to call fetchStats here as the useEffect will handle it
   }
 
   const downloadPDF = async () => {

@@ -21,7 +21,16 @@ const ExpenseFilters = ({ filters, categories, onFilterChange, onApplyFilters })
   const handleChange = (e) => {
     const { name, value } = e.target
     console.log(`Filter changed: ${name} = ${value}`)
-    setLocalFilters((prev) => ({ ...prev, [name]: value }))
+
+    // Update local state
+    const updatedFilters = { ...localFilters, [name]: value }
+    setLocalFilters(updatedFilters)
+
+    // For sort options, apply immediately without requiring the Apply button
+    if (name === "sortBy" || name === "sortOrder") {
+      onFilterChange(updatedFilters)
+      onApplyFilters()
+    }
   }
 
   const handleSubmit = (e) => {

@@ -1,44 +1,60 @@
-import React, { useState } from 'react';
-import ExpenseForm from './ExpenseForm';
-import '../styles/ExpenseList.css';
-import { Edit, Trash2, Receipt, ChevronDown, ChevronUp } from 'lucide-react';
+"use client"
+
+import React, { useState } from "react"
+import ExpenseForm from "./ExpenseForm"
+import "../styles/ExpenseList.css"
+import { Edit, Trash2, Receipt, ChevronDown, ChevronUp, ImageIcon } from 'lucide-react'
 
 const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
-  const [editingId, setEditingId] = useState(null);
-  const [expandedId, setExpandedId] = useState(null);
+  const [editingId, setEditingId] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+    const date = new Date(dateString)
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+  }
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount)
+  }
 
   const handleEdit = (id) => {
-    setEditingId(id);
-  };
+    setEditingId(id)
+  }
 
   const handleCancelEdit = () => {
-    setEditingId(null);
-  };
+    setEditingId(null)
+  }
 
   const handleUpdate = (expenseData) => {
-    onUpdate(editingId, expenseData);
-    setEditingId(null);
-  };
+    onUpdate(editingId, expenseData)
+    setEditingId(null)
+  }
 
   const toggleExpand = (id) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
+    setExpandedId(expandedId === id ? null : id)
+  }
+
+  const showImagePreview = (receiptPath) => {
+    // Make sure we have the full URL to the image
+    const fullImageUrl = receiptPath.startsWith("http") 
+      ? receiptPath 
+      : `http://localhost:5000/${receiptPath}`
+    
+    setImagePreview(fullImageUrl)
+  }
+
+  const closeImagePreview = () => {
+    setImagePreview(null)
+  }
 
   if (expenses.length === 0) {
     return (
@@ -46,7 +62,7 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
         <h3>No expenses found</h3>
         <p>Add your first expense to start tracking your spending.</p>
       </div>
-    );
+    )
   }
 
   return (
@@ -66,7 +82,7 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
           <tbody>
             {expenses.map((expense) => (
               <React.Fragment key={expense._id}>
-                <tr className={expandedId === expense._id ? 'expanded' : ''}>
+                <tr className={expandedId === expense._id ? "expanded" : ""}>
                   <td>{formatDate(expense.date)}</td>
                   <td>{expense.title}</td>
                   <td>
@@ -74,33 +90,31 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
                   </td>
                   <td className="amount">{formatCurrency(expense.amount)}</td>
                   <td className="actions">
-                    <button 
-                      className="action-btn edit-btn" 
+                    <button
+                      className="action-btn edit-btn"
                       onClick={() => handleEdit(expense._id)}
                       title="Edit expense"
                     >
                       <Edit size={16} />
                     </button>
-                    <button 
-                      className="action-btn delete-btn" 
+                    <button
+                      className="action-btn delete-btn"
                       onClick={() => onDelete(expense._id)}
                       title="Delete expense"
                     >
                       <Trash2 size={16} />
                     </button>
                     {expense.receipt && (
-                      <a 
-                        href={`http://localhost:5000/${expense.receipt}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
+                      <button
                         className="action-btn receipt-btn"
+                        onClick={() => showImagePreview(expense.receipt)}
                         title="View receipt"
                       >
-                        <Receipt size={16} />
-                      </a>
+                        <ImageIcon size={16} />
+                      </button>
                     )}
-                    <button 
-                      className="action-btn expand-btn" 
+                    <button
+                      className="action-btn expand-btn"
                       onClick={() => toggleExpand(expense._id)}
                       title={expandedId === expense._id ? "Hide details" : "Show details"}
                     >
@@ -113,7 +127,21 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
                     <td colSpan="5">
                       <div className="expense-description">
                         <h4>Description:</h4>
-                        <p>{expense.description || 'No description provided'}</p>
+                        <p>{expense.description || "No description provided"}</p>
+                        
+                        {expense.receipt && (
+                          <div className="receipt-thumbnail">
+                            <h4>Receipt:</h4>
+                            <img 
+                              src={expense.receipt.startsWith("http") 
+                                ? expense.receipt 
+                                : `http://localhost:5000/${expense.receipt}`} 
+                              alt="Receipt" 
+                              onClick={() => showImagePreview(expense.receipt)}
+                              className="thumbnail-image"
+                            />
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -121,7 +149,7 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
                 {editingId === expense._id && (
                   <tr className="edit-form-row">
                     <td colSpan="5">
-                      <ExpenseForm 
+                      <ExpenseForm
                         expense={expense}
                         onSubmit={handleUpdate}
                         onCancel={handleCancelEdit}
@@ -136,8 +164,18 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
           </tbody>
         </table>
       </div>
-    </div>
-  );
-};
 
-export default ExpenseList;
+      {/* Image Preview Modal */}
+      {imagePreview && (
+        <div className="image-preview-modal" onClick={closeImagePreview}>
+          <div className="image-preview-content" onClick={(e) => e.stopPropagation()}>
+            <button className="close-preview-btn" onClick={closeImagePreview}>×</button>
+            <img src={imagePreview || "/placeholder.svg"} alt="Receipt" className="preview-image" />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default ExpenseList
