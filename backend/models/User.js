@@ -5,10 +5,13 @@ const userSchema = new mongoose.Schema({
     name: String,
     email: { type: String, unique: true },
     password: String,
-    nic: { type: String, required: true, unique: true },  // New field
-    age: { type: Number, required: true },                // New field
-    gender: { type: String, required: true },              // New field
-    profilePic: { type: String },                          // New field (URL for the profile picture)
-});
+    nic: { type: String, required: true, unique: true },
+    age: { type: Number, required: true },
+    gender: { type: String, required: true },
+    profilePic: { 
+        data: Buffer,
+        contentType: String
+    }
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

@@ -1,4 +1,5 @@
-const mongoose = require("mongoose")
+// backend/models/Expense.js
+const mongoose = require("mongoose");
 
 const expenseSchema = new mongoose.Schema(
   {
@@ -31,15 +32,16 @@ const expenseSchema = new mongoose.Schema(
       default: Date.now,
     },
     receipt: {
-      type: String, // Optional receipt image path
+      data: Buffer,
+      contentType: String
     },
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
 // Add indexes for faster querying by date
-expenseSchema.index({ user: 1, date: -1 })
+expenseSchema.index({ user: 1, date: -1 });
 
-module.exports = mongoose.model("Expense", expenseSchema)
+module.exports = mongoose.model("Expense", expenseSchema);

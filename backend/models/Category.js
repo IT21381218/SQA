@@ -1,4 +1,5 @@
-const mongoose = require("mongoose")
+// backend/models/Category.js
+const mongoose = require("mongoose");
 
 const categorySchema = new mongoose.Schema(
   {
@@ -23,10 +24,10 @@ const categorySchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
 // Ensure categories are unique per user
-categorySchema.index({ user: 1, name: 1 }, { unique: true })
+categorySchema.index({ user: 1, name: 1 }, { unique: true });
 
-module.exports = mongoose.model("Category", categorySchema)
+module.exports = mongoose.model("Category", categorySchema);

@@ -1,8 +1,10 @@
+// backend/controllers/expenseController.js
 const Expense = require("../models/Expense")
 const PDFDocument = require("pdfkit")
 const fs = require("fs")
 const path = require("path")
-const mongoose = require("mongoose") // Added missing mongoose import
+const mongoose = require("mongoose")
+const jwt = require("jsonwebtoken")
 
 // Create a new expense
 const createExpense = async (req, res) => {
@@ -10,7 +12,13 @@ const createExpense = async (req, res) => {
     const { title, amount, category, description, date } = req.body
 
     // Handle receipt file if uploaded
-    const receipt = req.file ? req.file.path : null
+    let receipt = null
+    if (req.file) {
+      receipt = {
+        data: req.file.buffer,
+        contentType: req.file.mimetype,
+      }
+    }
 
     const expense = await Expense.create({
       user: req.user.id,
@@ -22,7 +30,13 @@ const createExpense = async (req, res) => {
       receipt,
     })
 
-    res.status(201).json(expense)
+    // Don't send the actual image data in the response
+    const expenseResponse = {
+      ...expense.toObject(),
+      receipt: receipt ? true : false,
+    }
+
+    res.status(201).json(expenseResponse)
   } catch (error) {
     console.error("Error creating expense:", error)
     res.status(500).json({ message: "Server error", error: error.message })
@@ -32,57 +46,66 @@ const createExpense = async (req, res) => {
 // Get all expenses for a user
 const getExpenses = async (req, res) => {
   try {
-    const { startDate, endDate, category, sortBy, sortOrder } = req.query;
-    
-    console.log("Filter request:", { startDate, endDate, category, sortBy, sortOrder });
+    const { startDate, endDate, category, sortBy, sortOrder } = req.query
+
+    console.log("Filter request:", { startDate, endDate, category, sortBy, sortOrder })
 
     // Build query
-    const query = { user: new mongoose.Types.ObjectId(req.user.id) }; // Fixed: use 'new' keyword
+    const query = { user: new mongoose.Types.ObjectId(req.user.id) }
 
     // Date filtering
     if (startDate || endDate) {
-      query.date = {};
+      query.date = {}
       if (startDate) {
-        const parsedStartDate = new Date(startDate);
+        const parsedStartDate = new Date(startDate)
         // Set time to beginning of day (00:00:00)
-        parsedStartDate.setHours(0, 0, 0, 0);
-        query.date.$gte = parsedStartDate;
+        parsedStartDate.setHours(0, 0, 0, 0)
+        query.date.$gte = parsedStartDate
       }
       if (endDate) {
-        const parsedEndDate = new Date(endDate);
+        const parsedEndDate = new Date(endDate)
         // Set time to end of day (23:59:59)
-        parsedEndDate.setHours(23, 59, 59, 999);
-        query.date.$lte = parsedEndDate;
+        parsedEndDate.setHours(23, 59, 59, 999)
+        query.date.$lte = parsedEndDate
       }
     }
 
     // Category filtering
-    if (category && category.trim() !== '') {
-      query.category = category;
+    if (category && category.trim() !== "") {
+      query.category = category
     }
 
-    console.log("Query:", JSON.stringify(query));
+    console.log("Query:", JSON.stringify(query))
 
     // Build sort options
-    const sort = {};
+    const sort = {}
     if (sortBy) {
-      sort[sortBy] = sortOrder === "desc" ? -1 : 1;
+      sort[sortBy] = sortOrder === "desc" ? -1 : 1
     } else {
-      sort.date = -1; // Default sort by date descending
+      sort.date = -1 // Default sort by date descending
     }
 
-    console.log("Sort:", JSON.stringify(sort));
+    console.log("Sort:", JSON.stringify(sort))
 
-    const expenses = await Expense.find(query).sort(sort);
-    
-    console.log(`Found ${expenses.length} expenses`);
+    const expenses = await Expense.find(query).sort(sort)
 
-    res.json(expenses);
+    console.log(`Found ${expenses.length} expenses`)
+
+    // Transform expenses to not include the actual image data
+    const transformedExpenses = expenses.map((expense) => {
+      const expenseObj = expense.toObject()
+      if (expenseObj.receipt) {
+        expenseObj.receipt = true // Just indicate receipt exists
+      }
+      return expenseObj
+    })
+
+    res.json(transformedExpenses)
   } catch (error) {
-    console.error("Error fetching expenses:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error fetching expenses:", error)
+    res.status(500).json({ message: "Server error", error: error.message })
   }
-};
+}
 
 // Get a single expense by ID
 const getExpenseById = async (req, res) => {
@@ -98,7 +121,13 @@ const getExpenseById = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to access this expense" })
     }
 
-    res.json(expense)
+    // Don't send the actual image data in the response
+    const expenseResponse = {
+      ...expense.toObject(),
+      receipt: expense.receipt ? true : false,
+    }
+
+    res.json(expenseResponse)
   } catch (error) {
     console.error("Error fetching expense:", error)
     res.status(500).json({ message: "Server error", error: error.message })
@@ -130,20 +159,21 @@ const updateExpense = async (req, res) => {
 
     // Handle receipt file if uploaded
     if (req.file) {
-      // Delete old receipt if exists
-      if (expense.receipt) {
-        try {
-          fs.unlinkSync(expense.receipt)
-        } catch (err) {
-          console.error("Error deleting old receipt:", err)
-        }
+      expense.receipt = {
+        data: req.file.buffer,
+        contentType: req.file.mimetype,
       }
-      expense.receipt = req.file.path
     }
 
     await expense.save()
 
-    res.json(expense)
+    // Don't send the actual image data in the response
+    const expenseResponse = {
+      ...expense.toObject(),
+      receipt: expense.receipt ? true : false,
+    }
+
+    res.json(expenseResponse)
   } catch (error) {
     console.error("Error updating expense:", error)
     res.status(500).json({ message: "Server error", error: error.message })
@@ -164,16 +194,7 @@ const deleteExpense = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to delete this expense" })
     }
 
-    // Delete receipt file if exists
-    if (expense.receipt) {
-      try {
-        fs.unlinkSync(expense.receipt)
-      } catch (err) {
-        console.error("Error deleting receipt:", err)
-      }
-    }
-
-    await expense.remove()
+    await expense.deleteOne()
 
     res.json({ message: "Expense removed" })
   } catch (error) {
@@ -185,32 +206,32 @@ const deleteExpense = async (req, res) => {
 // Get expense statistics
 const getExpenseStats = async (req, res) => {
   try {
-    const { period, startDate, endDate } = req.query;
-    
-    console.log("Stats request:", { period, startDate, endDate, userId: req.user.id });
+    const { period, startDate, endDate } = req.query
+
+    console.log("Stats request:", { period, startDate, endDate, userId: req.user.id })
 
     // Validate dates
-    let start, end;
+    let start, end
     if (startDate && endDate) {
-      start = new Date(startDate);
-      end = new Date(endDate);
+      start = new Date(startDate)
+      end = new Date(endDate)
     } else {
       // Default to current month if no dates provided
-      const now = new Date();
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const now = new Date()
+      start = new Date(now.getFullYear(), now.getMonth(), 1)
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
     }
 
     // Build match stage for aggregation
     const match = {
-      user: new mongoose.Types.ObjectId(req.user.id), // Fixed: use 'new' keyword
+      user: new mongoose.Types.ObjectId(req.user.id),
       date: { $gte: start, $lte: end },
-    };
+    }
 
-    console.log("Match stage:", JSON.stringify(match));
+    console.log("Match stage:", JSON.stringify(match))
 
     // Build group stage based on period
-    let groupStage;
+    let groupStage
     if (period === "day") {
       groupStage = {
         _id: {
@@ -218,61 +239,61 @@ const getExpenseStats = async (req, res) => {
           month: { $month: "$date" },
           day: { $dayOfMonth: "$date" },
         },
-      };
+      }
     } else if (period === "month") {
       groupStage = {
         _id: {
           year: { $year: "$date" },
           month: { $month: "$date" },
         },
-      };
+      }
     } else if (period === "year") {
       groupStage = {
         _id: {
           year: { $year: "$date" },
         },
-      };
+      }
     } else {
       // Default to category grouping
       groupStage = {
         _id: "$category",
-      };
+      }
     }
 
     // Add total calculation to group stage
-    groupStage.total = { $sum: "$amount" };
-    groupStage.count = { $sum: 1 };
+    groupStage.total = { $sum: "$amount" }
+    groupStage.count = { $sum: 1 }
 
-    console.log("Group stage:", JSON.stringify(groupStage));
+    console.log("Group stage:", JSON.stringify(groupStage))
 
     // Run aggregation with error handling
-    let stats = [];
+    let stats = []
     try {
       stats = await Expense.aggregate([
         { $match: match },
         { $group: groupStage },
         { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
-      ]);
-      console.log("Stats results:", stats.length);
+      ])
+      console.log("Stats results:", stats.length)
     } catch (aggError) {
-      console.error("Aggregation error:", aggError);
+      console.error("Aggregation error:", aggError)
       // Return empty stats instead of failing
-      stats = [];
+      stats = []
     }
 
     // Calculate overall total with error handling
-    let totalAmount = 0;
+    let totalAmount = 0
     try {
       const totalResult = await Expense.aggregate([
         { $match: match },
         { $group: { _id: null, total: { $sum: "$amount" } } },
-      ]);
-      totalAmount = totalResult.length > 0 ? totalResult[0].total : 0;
+      ])
+      totalAmount = totalResult.length > 0 ? totalResult[0].total : 0
     } catch (totalError) {
-      console.error("Total calculation error:", totalError);
+      console.error("Total calculation error:", totalError)
       // Calculate total manually if aggregation fails
-      const expenses = await Expense.find(match);
-      totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const expenses = await Expense.find(match)
+      totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0)
     }
 
     res.json({
@@ -281,17 +302,17 @@ const getExpenseStats = async (req, res) => {
       period,
       startDate: start,
       endDate: end,
-    });
+    })
   } catch (error) {
-    console.error("Error getting expense stats:", error);
+    console.error("Error getting expense stats:", error)
     // Send a more detailed error response
-    res.status(500).json({ 
-      message: "Server error", 
+    res.status(500).json({
+      message: "Server error",
       error: error.message,
-      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
-    });
+      stack: process.env.NODE_ENV === "production" ? undefined : error.stack,
+    })
   }
-};
+}
 
 // Generate PDF report of expenses
 const generatePDF = async (req, res) => {
@@ -384,6 +405,68 @@ const generatePDF = async (req, res) => {
   }
 }
 
+// Get receipt image
+const getReceiptImage = async (req, res) => {
+  try {
+    console.log("Receipt image request for expense ID:", req.params.id)
+    console.log("Token from query:", req.query.token ? "Present" : "Not present")
+
+    // Get user ID from either req.user (from middleware) or from token in query
+    let userId = req.user ? req.user.id : null
+
+    // If token is provided in query, verify it and get user ID
+    if (!userId && req.query.token) {
+      try {
+        const decoded = jwt.verify(req.query.token, process.env.JWT_SECRET)
+        userId = decoded.id
+        console.log("Decoded user ID from token:", userId)
+      } catch (tokenError) {
+        console.error("Invalid token:", tokenError)
+        return res.status(401).send("Unauthorized - Invalid token")
+      }
+    }
+
+    if (!userId) {
+      console.error("No user ID found in request")
+      return res.status(401).send("Unauthorized - No user ID")
+    }
+
+    // Find the expense by ID
+    const expense = await Expense.findById(req.params.id)
+
+    if (!expense) {
+      console.error("Expense not found:", req.params.id)
+      return res.status(404).send("Expense not found")
+    }
+
+    console.log("Expense user ID:", expense.user.toString())
+    console.log("Request user ID:", userId)
+
+    // Check if the expense belongs to the user
+    if (expense.user.toString() !== userId) {
+      console.error("User not authorized to access this receipt")
+      return res.status(403).send("Not authorized to access this receipt")
+    }
+
+    if (!expense.receipt || !expense.receipt.data) {
+      console.error("No receipt image found for expense:", req.params.id)
+      return res.status(404).send("No receipt image found")
+    }
+
+    // Set proper cache control headers to prevent caching issues
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private")
+    res.set("Pragma", "no-cache")
+    res.set("Expires", "0")
+    res.set("Content-Type", expense.receipt.contentType)
+
+    console.log("Sending receipt image with content type:", expense.receipt.contentType)
+    res.send(expense.receipt.data)
+  } catch (error) {
+    console.error("Error fetching receipt image:", error)
+    res.status(500).json({ message: "Server error", error: error.message })
+  }
+}
+
 module.exports = {
   createExpense,
   getExpenses,
@@ -392,4 +475,5 @@ module.exports = {
   deleteExpense,
   getExpenseStats,
   generatePDF,
+  getReceiptImage,
 }

@@ -1,7 +1,7 @@
+// backend/controllers/userController.js
 const User = require("../models/User")
 const jwt = require("jsonwebtoken")
 const bcrypt = require("bcryptjs")
-const fs = require("fs")
 
 // Generate a JWT token
 const generateToken = (id) => {
@@ -26,7 +26,13 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Handle profile picture if uploaded
-    const profilePic = req.file ? req.file.path : null
+    let profilePic = null
+    if (req.file) {
+      profilePic = {
+        data: req.file.buffer,
+        contentType: req.file.mimetype,
+      }
+    }
 
     const user = await User.create({
       name,
@@ -84,7 +90,19 @@ const getUserProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" })
     }
-    res.json(user)
+
+    // Don't send the actual image data in the profile response
+    const userResponse = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      nic: user.nic,
+      age: user.age,
+      gender: user.gender,
+      profilePic: user.profilePic ? true : false,
+    }
+
+    res.json(userResponse)
   } catch (error) {
     console.error("Error fetching user profile:", error)
     res.status(500).json({ message: "Server error", error: error.message })
@@ -113,15 +131,10 @@ const updateUserProfile = async (req, res) => {
 
     // Handle profile picture if uploaded
     if (req.file) {
-      // Delete old profile picture if exists
-      if (user.profilePic) {
-        try {
-          fs.unlinkSync(user.profilePic)
-        } catch (err) {
-          console.error("Error deleting old profile picture:", err)
-        }
+      user.profilePic = {
+        data: req.file.buffer,
+        contentType: req.file.mimetype,
       }
-      user.profilePic = req.file.path
     }
 
     const updatedUser = await user.save()
@@ -132,10 +145,54 @@ const updateUserProfile = async (req, res) => {
       email: updatedUser.email,
       age: updatedUser.age,
       gender: updatedUser.gender,
-      profilePic: updatedUser.profilePic,
+      profilePic: updatedUser.profilePic ? true : false,
     })
   } catch (error) {
     console.error("Error updating user profile:", error)
+    res.status(500).json({ message: "Server error", error: error.message })
+  }
+}
+
+// Get profile image
+const getProfileImage = async (req, res) => {
+  try {
+    // Get user ID from either req.user (from middleware) or from token in query
+    let userId = req.user ? req.user.id : null
+
+    // If token is provided in query, verify it and get user ID
+    if (!userId && req.query.token) {
+      try {
+        const decoded = jwt.verify(req.query.token, process.env.JWT_SECRET)
+        userId = decoded.id
+      } catch (tokenError) {
+        console.error("Invalid token:", tokenError)
+        return res.status(401).send("Unauthorized")
+      }
+    }
+
+    if (!userId) {
+      return res.status(401).send("Unauthorized")
+    }
+
+    const user = await User.findById(userId)
+
+    if (!user) {
+      return res.status(404).send("User not found")
+    }
+
+    if (!user.profilePic || !user.profilePic.data) {
+      // Send a default image or placeholder instead of 404
+      return res.status(404).send("No profile image found")
+    }
+
+    // Set proper cache control headers to prevent caching issues
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private")
+    res.set("Pragma", "no-cache")
+    res.set("Expires", "0")
+    res.set("Content-Type", user.profilePic.contentType)
+    res.send(user.profilePic.data)
+  } catch (error) {
+    console.error("Error fetching profile image:", error)
     res.status(500).json({ message: "Server error", error: error.message })
   }
 }
@@ -145,4 +202,5 @@ module.exports = {
   loginUser,
   getUserProfile,
   updateUserProfile,
+  getProfileImage,
 }
