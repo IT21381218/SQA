@@ -1,35 +1,63 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import '../styles/Navbar.css';
-import { Menu, X, User, LogOut, Home, BarChart2, Settings } from 'lucide-react';
-import { toast } from 'react-toastify';
+"use client"
+
+import { useState, useEffect, useRef } from "react"
+import { Link, useNavigate, useLocation } from "react-router-dom"
+import "../styles/Navbar.css"
+import { Menu, X, User, LogOut, Home, BarChart2 } from "lucide-react"
+import { toast } from "react-toastify"
 
 const Navbar = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-  
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [profileImageUrl, setProfileImageUrl] = useState(null)
+  const [imageError, setImageError] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const profileImageRef = useRef(null)
+
+  // Function to get profile image URL with auth token
+  const getProfileImageUrl = () => {
+    const token = localStorage.getItem("token")
+    if (!token) return null
+
+    // Add token and timestamp to prevent caching
+    return `http://localhost:5000/api/users/profile/image?token=${token}&t=${Date.now()}`
+  }
+
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token);
-  }, [location]);
-  
+    const token = localStorage.getItem("token")
+    setIsLoggedIn(!!token)
+
+    if (token) {
+      // Set profile image URL with cache-busting parameter
+      setProfileImageUrl(getProfileImageUrl())
+      setImageError(false)
+    } else {
+      setProfileImageUrl(null)
+    }
+  }, [location])
+
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsLoggedIn(false);
-    toast.info('You have been logged out.');
-    navigate('/login');
-    setMobileMenuOpen(false);
-  };
-  
+    localStorage.removeItem("token")
+    setIsLoggedIn(false)
+    setProfileImageUrl(null)
+    toast.info("You have been logged out.")
+    navigate("/login")
+    setMobileMenuOpen(false)
+  }
+
   const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-  };
-  
+    setMobileMenuOpen(!mobileMenuOpen)
+  }
+
   const closeMobileMenu = () => {
-    setMobileMenuOpen(false);
-  };
+    setMobileMenuOpen(false)
+  }
+
+  const handleImageError = () => {
+    console.log("Profile image failed to load in navbar")
+    setImageError(true)
+  }
 
   return (
     <nav className="navbar">
@@ -38,19 +66,19 @@ const Navbar = () => {
           <BarChart2 className="logo-icon" />
           <span>ExpenseTracker</span>
         </Link>
-        
+
         <div className="menu-icon" onClick={toggleMobileMenu}>
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </div>
-        
-        <ul className={mobileMenuOpen ? 'nav-menu active' : 'nav-menu'}>
+
+        <ul className={mobileMenuOpen ? "nav-menu active" : "nav-menu"}>
           <li className="nav-item">
             <Link to="/" className="nav-link" onClick={closeMobileMenu}>
               <Home size={18} />
               <span>Home</span>
             </Link>
           </li>
-          
+
           {isLoggedIn ? (
             <>
               <li className="nav-item">
@@ -60,8 +88,18 @@ const Navbar = () => {
                 </Link>
               </li>
               <li className="nav-item">
-                <Link to="/profile" className="nav-link" onClick={closeMobileMenu}>
-                  <User size={18} />
+                <Link to="/profile" className="nav-link profile-link" onClick={closeMobileMenu}>
+                  {profileImageUrl && !imageError ? (
+                    <img
+                      ref={profileImageRef}
+                      src={profileImageUrl || "/placeholder.svg"}
+                      alt="Profile"
+                      className="nav-profile-image"
+                      onError={handleImageError}
+                    />
+                  ) : (
+                    <User size={18} />
+                  )}
                   <span>Profile</span>
                 </Link>
               </li>
@@ -89,7 +127,7 @@ const Navbar = () => {
         </ul>
       </div>
     </nav>
-  );
-};
+  )
+}
 
-export default Navbar;
+export default Navbar

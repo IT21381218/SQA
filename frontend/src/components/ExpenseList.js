@@ -1,14 +1,17 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useRef } from "react"
 import ExpenseForm from "./ExpenseForm"
 import "../styles/ExpenseList.css"
-import { Edit, Trash2, Receipt, ChevronDown, ChevronUp, ImageIcon } from 'lucide-react'
+import { Edit, Trash2, ChevronDown, ChevronUp, ImageIcon, AlertCircle } from "lucide-react"
 
 const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
   const [editingId, setEditingId] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
+  const [imageError, setImageError] = useState(false)
+  const previewImageRef = useRef(null)
+  const thumbnailRefs = useRef({})
 
   const formatDate = (dateString) => {
     const date = new Date(dateString)
@@ -43,17 +46,44 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
     setExpandedId(expandedId === id ? null : id)
   }
 
-  const showImagePreview = (receiptPath) => {
-    // Make sure we have the full URL to the image
-    const fullImageUrl = receiptPath.startsWith("http") 
-      ? receiptPath 
-      : `http://localhost:5000/${receiptPath}`
-    
-    setImagePreview(fullImageUrl)
+  // Function to get image URL with auth token
+  const getImageUrl = (expenseId) => {
+    const token = localStorage.getItem("token")
+    if (!token) return null
+
+    // Add cache-busting parameter
+    return `http://localhost:5000/api/expenses/${expenseId}/receipt?token=${token}&t=${Date.now()}`
+  }
+
+  const showImagePreview = (expenseId) => {
+    setImageError(false)
+    const imageUrl = getImageUrl(expenseId)
+
+    if (!imageUrl) {
+      console.error("Cannot load image: No authentication token")
+      setImageError(true)
+      return
+    }
+
+    console.log("Loading receipt image from:", imageUrl)
+    setImagePreview(imageUrl)
   }
 
   const closeImagePreview = () => {
     setImagePreview(null)
+    setImageError(false)
+  }
+
+  const handleImageError = (e, id) => {
+    console.error(`Error loading image for expense ${id}:`, e)
+    e.target.src = "/placeholder.svg?height=150&width=150"
+    e.target.alt = "Receipt image not available"
+    e.target.className = "thumbnail-image error"
+  }
+
+  const handlePreviewImageError = (e) => {
+    console.error("Error loading preview image:", e)
+    setImageError(true)
   }
 
   if (expenses.length === 0) {
@@ -107,7 +137,7 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
                     {expense.receipt && (
                       <button
                         className="action-btn receipt-btn"
-                        onClick={() => showImagePreview(expense.receipt)}
+                        onClick={() => showImagePreview(expense._id)}
                         title="View receipt"
                       >
                         <ImageIcon size={16} />
@@ -128,18 +158,20 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
                       <div className="expense-description">
                         <h4>Description:</h4>
                         <p>{expense.description || "No description provided"}</p>
-                        
+
                         {expense.receipt && (
                           <div className="receipt-thumbnail">
                             <h4>Receipt:</h4>
-                            <img 
-                              src={expense.receipt.startsWith("http") 
-                                ? expense.receipt 
-                                : `http://localhost:5000/${expense.receipt}`} 
-                              alt="Receipt" 
-                              onClick={() => showImagePreview(expense.receipt)}
-                              className="thumbnail-image"
-                            />
+                            <div className="thumbnail-container">
+                              {/* Use a placeholder initially and only load the actual image when needed */}
+                              <div
+                                className="thumbnail-image placeholder"
+                                onClick={() => showImagePreview(expense._id)}
+                              >
+                                <ImageIcon size={24} />
+                                <span>View Receipt</span>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -169,8 +201,25 @@ const ExpenseList = ({ expenses, onDelete, onUpdate, categories }) => {
       {imagePreview && (
         <div className="image-preview-modal" onClick={closeImagePreview}>
           <div className="image-preview-content" onClick={(e) => e.stopPropagation()}>
-            <button className="close-preview-btn" onClick={closeImagePreview}>×</button>
-            <img src={imagePreview || "/placeholder.svg"} alt="Receipt" className="preview-image" />
+            <button className="close-preview-btn" onClick={closeImagePreview}>
+              ×
+            </button>
+            {imageError ? (
+              <div className="image-error-container">
+                <AlertCircle size={48} />
+                <h3>Image Not Available</h3>
+                <p>The receipt image could not be loaded.</p>
+              </div>
+            ) : (
+              <img
+                ref={previewImageRef}
+                src={imagePreview || "/placeholder.svg"}
+                alt="Receipt"
+                className="preview-image"
+                onError={handlePreviewImageError}
+                crossOrigin="anonymous"
+              />
+            )}
           </div>
         </div>
       )}

@@ -211,17 +211,31 @@ const Dashboard = () => {
       const formData = new FormData()
       Object.keys(expenseData).forEach((key) => {
         if (expenseData[key] !== null && expenseData[key] !== undefined) {
+          // Log what we're adding to the form data
+          console.log(`Adding to form data: ${key}`, expenseData[key])
+
+          // Special handling for the receipt file
+          if (key === "receipt" && expenseData[key] instanceof File) {
+            console.log("Adding receipt file:", expenseData[key].name)
+          }
+
           formData.append(key, expenseData[key])
         }
       })
 
-      await axios.post("http://localhost:5000/api/expenses", formData, {
+      // Log the form data entries for debugging
+      for (const pair of formData.entries()) {
+        console.log(`Form data: ${pair[0]}:`, pair[1])
+      }
+
+      const response = await axios.post("http://localhost:5000/api/expenses", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       })
 
+      console.log("Expense added response:", response.data)
       toast.success("Expense added successfully")
       setShowAddExpense(false)
       fetchExpenses()
@@ -239,17 +253,31 @@ const Dashboard = () => {
       const formData = new FormData()
       Object.keys(expenseData).forEach((key) => {
         if (expenseData[key] !== null && expenseData[key] !== undefined) {
+          // Log what we're adding to the form data
+          console.log(`Updating form data: ${key}`, expenseData[key])
+
+          // Special handling for the receipt file
+          if (key === "receipt" && expenseData[key] instanceof File) {
+            console.log("Updating receipt file:", expenseData[key].name)
+          }
+
           formData.append(key, expenseData[key])
         }
       })
 
-      await axios.put(`http://localhost:5000/api/expenses/${id}`, formData, {
+      // Log the form data entries for debugging
+      for (const pair of formData.entries()) {
+        console.log(`Update form data: ${pair[0]}:`, pair[1])
+      }
+
+      const response = await axios.put(`http://localhost:5000/api/expenses/${id}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       })
 
+      console.log("Expense updated response:", response.data)
       toast.success("Expense updated successfully")
       fetchExpenses()
       fetchStats()
