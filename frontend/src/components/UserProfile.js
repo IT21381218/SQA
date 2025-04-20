@@ -21,6 +21,7 @@ const UserProfile = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    nic: "",
     age: "",
     gender: "",
     password: "",
@@ -65,6 +66,7 @@ const UserProfile = () => {
         setFormData({
           name: data.name || "",
           email: data.email || "",
+          nic: data.nic || "",
           age: data.age || "",
           gender: data.gender || "",
           password: "",
@@ -124,6 +126,8 @@ const UserProfile = () => {
       newErrors.email = "Email is invalid"
     }
 
+    if (!formData.nic.trim()) newErrors.nic = "NIC is required"
+
     if (!formData.age) newErrors.age = "Age is required"
     else if (isNaN(Number.parseInt(formData.age)) || Number.parseInt(formData.age) <= 0) {
       newErrors.age = "Age must be a positive number"
@@ -155,6 +159,7 @@ const UserProfile = () => {
       const updateData = new FormData()
       updateData.append("name", formData.name)
       updateData.append("email", formData.email)
+      updateData.append("nic", formData.nic)
       updateData.append("age", formData.age)
       updateData.append("gender", formData.gender)
 
@@ -323,6 +328,21 @@ const UserProfile = () => {
                     className={errors.email ? "error" : ""}
                   />
                   {errors.email && <div className="error-message">{errors.email}</div>}
+                </div>
+
+                <div className="input-group">
+                  <label htmlFor="nic" className="input-label">
+                    NIC
+                  </label>
+                  <input
+                    id="nic"
+                    name="nic"
+                    type="text"
+                    value={formData.nic}
+                    onChange={handleChange}
+                    className={errors.nic ? "error" : ""}
+                  />
+                  {errors.nic && <div className="error-message">{errors.nic}</div>}
                 </div>
 
                 <div className="input-group">

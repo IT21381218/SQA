@@ -22,6 +22,12 @@ const registerUser = async (req, res) => {
     return res.status(400).json({ message: "User already exists" })
   }
 
+  // Check if NIC already exists
+  const existingNIC = await User.findOne({ nic })
+  if (existingNIC) {
+    return res.status(400).json({ message: "NIC already registered" })
+  }
+
   try {
     const hashedPassword = await bcrypt.hash(password, 10)
 
@@ -118,9 +124,18 @@ const updateUserProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" })
     }
 
+    // Check if NIC is being updated and if it's already in use by another user
+    if (req.body.nic && req.body.nic !== user.nic) {
+      const existingNIC = await User.findOne({ nic: req.body.nic })
+      if (existingNIC && existingNIC._id.toString() !== user._id.toString()) {
+        return res.status(400).json({ message: "NIC already registered by another user" })
+      }
+    }
+
     // Update basic fields
     user.name = req.body.name || user.name
     user.email = req.body.email || user.email
+    user.nic = req.body.nic || user.nic
     user.age = req.body.age || user.age
     user.gender = req.body.gender || user.gender
 
@@ -143,6 +158,7 @@ const updateUserProfile = async (req, res) => {
       _id: updatedUser._id,
       name: updatedUser.name,
       email: updatedUser.email,
+      nic: updatedUser.nic,
       age: updatedUser.age,
       gender: updatedUser.gender,
       profilePic: updatedUser.profilePic ? true : false,
